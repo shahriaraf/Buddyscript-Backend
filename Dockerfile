@@ -14,5 +14,6 @@ COPY --from=builder /app/dist ./dist
 RUN mkdir -p uploads && chown -R node:node /app/uploads
 EXPOSE 3001
 USER node
+COPY --from=builder /app/node_modules ./node_modules
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "dist/main"]
+CMD ["sh", "-c", "node dist/database/migrate.js && node dist/main"]
