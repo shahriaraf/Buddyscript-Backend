@@ -2,9 +2,9 @@ import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { join } from 'path';
 import { unlinkSync } from 'fs';
 import * as sharp from 'sharp';
+import { v2 as cloudinary } from 'cloudinary';
 import { Media } from './entities/media.entity';
 
 @Injectable()
@@ -14,7 +14,13 @@ export class MediaService {
   constructor(
     @InjectRepository(Media) private mediaRepo: Repository<Media>,
     private config: ConfigService,
-  ) {}
+  ) {
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key:    process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+    });
+  }
 
   async processAndSave(
     file: Express.Multer.File,
@@ -23,30 +29,35 @@ export class MediaService {
     if (!file) throw new BadRequestException('No file provided');
 
     try {
-      // Resize to max 1200px wide, strip metadata (privacy)
+      // Resize & convert to webp
       const outputPath = file.path.replace(/\.[^.]+$/, '_opt.webp');
       await sharp(file.path)
         .resize({ width: 1200, withoutEnlargement: true })
         .webp({ quality: 85 })
         .toFile(outputPath);
 
-      // Remove original
       try { unlinkSync(file.path); } catch {}
 
-      const filename = outputPath.split('/').pop()!;
-      const baseUrl = this.config.get<string>('app.frontendUrl', 'http://localhost:3000');
-      const url = `${this.config.get('app.backendUrl', 'http://localhost:3001')}/uploads/${filename}`;
+      // Upload to Cloudinary
+      const result = await cloudinary.uploader.upload(outputPath, {
+        folder: 'buddyscript',
+        resource_type: 'image',
+      });
+
+      try { unlinkSync(outputPath); } catch {}
 
       const media = this.mediaRepo.create({
         uploaderId,
-        storageKey: filename,
-        url,
+        storageKey: result.public_id,
+        url: result.secure_url,
         mimeType: 'image/webp',
         sizeBytes: file.size,
+        width: result.width,
+        height: result.height,
       });
       const saved = await this.mediaRepo.save(media);
 
-      return { url, mediaId: saved.id };
+      return { url: result.secure_url, mediaId: saved.id };
     } catch (err) {
       this.logger.error('Media processing failed', err);
       try { unlinkSync(file.path); } catch {}
