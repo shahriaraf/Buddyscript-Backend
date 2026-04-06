@@ -13,7 +13,8 @@ export const dbConfig = registerAs('database', () => {
       database: url.pathname.slice(1), // Remove leading /
       poolSize: parseInt(process.env.DB_POOL_SIZE || '20', 10),
       poolMin: parseInt(process.env.DB_POOL_MIN || '5', 10),
-      ssl: process.env.NODE_ENV === 'production' ? {
+      // Only enable SSL if not connecting to the local 'postgres' service name
+      ssl: (process.env.NODE_ENV === 'production' && process.env.DB_HOST !== 'postgres') ? {
         rejectUnauthorized: false
       } : false,
     };
