@@ -1,5 +1,5 @@
-import { AppDataSource } from '@db/data-source';
 import 'dotenv/config';
+import { AppDataSource } from '../data-source';
 
 async function runMigrations() {
   try {

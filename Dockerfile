@@ -11,9 +11,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --omit=dev
 COPY --from=builder /app/dist ./dist
-COPY tsconfig.json ./tsconfig.json
 RUN mkdir -p uploads && chown -R node:node /app/uploads
 EXPOSE 3001
 USER node
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["sh", "-c", "node -r tsconfig-paths/register dist/database/migrate.js && node -r tsconfig-paths/register dist/main"]
+CMD ["sh", "-c", "node dist/database/migrations/migrate.js && node dist/main"]
