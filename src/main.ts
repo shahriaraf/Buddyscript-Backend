@@ -18,8 +18,19 @@ async function bootstrap() {
   const isProd = config.get('app.nodeEnv') === 'production';
 
   // ── Security ─────────────────────────────────────────────────────
+  const origins = [
+    'https://buddyscript-tw.vercel.app',
+    'http://localhost:3000',
+  ];
+
   app.enableCors({
-    origin: frontendUrl,
+    origin: (origin, callback) => {
+      if (!origin || origins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
